@@ -25,8 +25,10 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.Library.ImprovedCommandXboxController;
 import frc.robot.Library.Scope;
 import frc.robot.commands.fineTuneDrivetrainCmd;
+import frc.robot.commands.spinFlywheelCmd;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.ExampleFlywheel;
 
 public class RobotContainer {
     private final double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // top speed at 12 V
@@ -35,6 +37,8 @@ public class RobotContainer {
 
     // Subsystems: add yours below as you build them out.
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    // Teaching example: fake flywheel demonstrating the Scope library (no hardware).
+    public final ExampleFlywheel flywheel = new ExampleFlywheel();
 
     // Three controllers: driver, operator, test. Rename/repurpose as needed.
     public static final ImprovedCommandXboxController m_driverController = new ImprovedCommandXboxController(0);
@@ -117,8 +121,10 @@ public class RobotContainer {
 
     /*
      * Driver 2 (port 1): free — add operator controls here.
+     * A(2) spins the example flywheel (Scope library demo).
      */
     private void configureDriver2Bindings() {
+        m_driverController2.a().whileTrue(new spinFlywheelCmd(flywheel));
     }
 
     private void configureDriver3Bindings() {
