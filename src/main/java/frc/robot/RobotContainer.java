@@ -23,6 +23,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 
 import frc.robot.Library.ImprovedCommandXboxController;
+import frc.robot.Library.Scope;
 import frc.robot.commands.fineTuneDrivetrainCmd;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
@@ -132,6 +133,11 @@ public class RobotContainer {
 
         swerveStatePublisher.set(drivetrain.getModuleStates());
         robotPosPublisher.set(pos);
+
+        // Example Scope usage: one-line logging visible in AdvantageScope live AND in the log file.
+        var speeds = drivetrain.getSpeeds();
+        Scope.put("Drivetrain/Speed", Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond));
+        Scope.put("Drivetrain/Omega", speeds.omegaRadiansPerSecond);
     }
 
     /**

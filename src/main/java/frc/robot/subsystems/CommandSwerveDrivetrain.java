@@ -31,12 +31,12 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.VisionConstants;
+import frc.robot.Library.Scope;
 import frc.robot.generated.TunerConstants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 import frc.robot.Library.ImprovedCommandXboxController;
@@ -71,9 +71,14 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.ApplyRobotSpeeds m_autoDrive = new SwerveRequest.ApplyRobotSpeeds().withDriveRequestType(DriveRequestType.Velocity);
 
     // --- Move-to-pose PID controllers (X and Y in field frame, plus rotation) ---
-    PIDController m_translationXController = new PIDController(AutoConstants.moveToPoseTranslationkP, AutoConstants.moveToPoseTranslationkI, AutoConstants.moveToPoseTranslationkD);
-    PIDController m_translationYController = new PIDController(AutoConstants.moveToPoseTranslationkP, AutoConstants.moveToPoseTranslationkI, AutoConstants.moveToPoseTranslationkD);
-    PIDController m_rotationController = new PIDController(AutoConstants.moveToPoseRotationkP, AutoConstants.moveToPoseRotationkI, AutoConstants.moveToPoseRotationkD);
+    // Gains are Scope.Tunables: edit them live from AdvantageScope's tuning mode
+    // ("Tuning" table), then copy the winning values back into Constants.AutoConstants.
+    private static final Scope.Tunable kMoveToPoseTranslationP = new Scope.Tunable("Drivetrain/MoveToPose/TranslationP", AutoConstants.moveToPoseTranslationkP);
+    private static final Scope.Tunable kMoveToPoseRotationP = new Scope.Tunable("Drivetrain/MoveToPose/RotationP", AutoConstants.moveToPoseRotationkP);
+    private static final Scope.Tunable kMoveToPoseRotationI = new Scope.Tunable("Drivetrain/MoveToPose/RotationI", AutoConstants.moveToPoseRotationkI);
+    PIDController m_translationXController = new PIDController(kMoveToPoseTranslationP.get(), AutoConstants.moveToPoseTranslationkI, AutoConstants.moveToPoseTranslationkD);
+    PIDController m_translationYController = new PIDController(kMoveToPoseTranslationP.get(), AutoConstants.moveToPoseTranslationkI, AutoConstants.moveToPoseTranslationkD);
+    PIDController m_rotationController = new PIDController(kMoveToPoseRotationP.get(), kMoveToPoseRotationI.get(), AutoConstants.moveToPoseRotationkD);
     Pose2d m_targetPose2d = new Pose2d();
     double m_distFromTarget = Double.MAX_VALUE;
     double m_angleDistFromTarget = Double.MAX_VALUE;
@@ -194,6 +199,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }
         updateOdometry(VisionConstants.LIMELIGHT_NAME, -1); // -1 disables the max-tag-distance filter
         reseedGyroByVision();
+
+        // Apply tuned PID gains every loop so AdvantageScope tuning-mode edits take
+        // effect immediately (cheap calls; the Tunables read from NetworkTables).
+        m_translationXController.setP(kMoveToPoseTranslationP.get());
+        m_translationYController.setP(kMoveToPoseTranslationP.get());
+        m_rotationController.setP(kMoveToPoseRotationP.get());
+        m_rotationController.setI(kMoveToPoseRotationI.get());
     }
 
     // ======================= Vision pose estimation =======================
@@ -215,12 +227,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(llName);
         if (mt2 == null) {
-            SmartDashboard.putBoolean("Vision/ValidUpdate", false);
+            Scope.put("Vision/ValidUpdate", false);
             return -1;
         }
 
         if (minDist > 0 && mt2.avgTagDist > minDist) {
-            SmartDashboard.putBoolean("Vision/ValidUpdate", false);
+            Scope.put("Vision/ValidUpdate", false);
             return -1;
         }
 
@@ -242,14 +254,14 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
             addVisionMeasurement(mt2.pose, captureTime2, VecBuilder.fill(xyStdDev, xyStdDev, rotStdDev));
 
-            SmartDashboard.putBoolean("Vision/ValidUpdate", true);
-            SmartDashboard.putNumber("Vision/AvgTagDist", mt2.avgTagDist);
-            SmartDashboard.putNumber("Vision/TagCount", mt2.tagCount);
-            SmartDashboard.putNumber("Vision/LatencyMs", mt2.latency);
+            Scope.put("Vision/ValidUpdate", true);
+            Scope.put("Vision/AvgTagDist", mt2.avgTagDist);
+            Scope.put("Vision/TagCount", mt2.tagCount);
+            Scope.put("Vision/LatencyMs", mt2.latency);
 
             return mt2.avgTagDist;
         } else {
-            SmartDashboard.putBoolean("Vision/ValidUpdate", false);
+            Scope.put("Vision/ValidUpdate", false);
         }
         return -1;
     }
@@ -274,8 +286,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     zeroOdoDegree -= (newDeg - curDeg);
                     resetPose(new Pose2d(getState().Pose.getTranslation(), targetRot));
 
-                    SmartDashboard.putNumber("Vision/LastReseedDeg", newDeg);
-                    SmartDashboard.putNumber("Vision/LastReseedDiscrepancy", newDeg - curDeg);
+                    Scope.put("Vision/LastReseedDeg", newDeg);
+                    Scope.put("Vision/LastReseedDiscrepancy", newDeg - curDeg);
                 }
             }
         }
